@@ -1,0 +1,13 @@
+mumble:
+  host: mumble.example.com
+  port: "64738"
+  username: Gobot
+  password: secret
+  # retries: 3
+snapcast:
+  host: 127.0.0.1
+  port: "1704"
+  # retries: 3
+volume:
+  default: 10
+  ducker: 5
