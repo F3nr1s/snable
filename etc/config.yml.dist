@@ -11,3 +11,8 @@ snapcast:
 volume:
   default: 10
   ducker: 5
+debug:
+  # The higher the level, the more information are logged
+  level: 5
+  # If file is not set, it will log to stdout
+  # file:
