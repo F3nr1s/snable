@@ -14,6 +14,15 @@ import (
 	"gopkg.in/hraban/opus.v2"
 )
 
+type UnsupportedCodecError struct {
+	Codec string
+	Err   error
+}
+
+func (e *UnsupportedCodecError) Error() string {
+	return e.Err.Error()
+}
+
 type decoder func([]byte, messages.ServerSettings) ([]int16, error)
 
 type SnapClient struct {
@@ -59,9 +68,26 @@ func (client SnapClient) Close() {
 
 func (client *SnapClient) Initialize() error {
 	gi, _ := goInfo.GetInfo()
-	msg := messages.Hello{"x86_64", "snable", gi.Hostname, client.id, 1, client.id, gi.GoOS, 2, "0.17.1"}
+	msg := messages.Hello{
+		Arch:                      "x86_64",
+		ClientName:                "snable",
+		HostName:                  gi.Hostname,
+		ID:                        client.id,
+		Instance:                  1,
+		Mac:                       client.id,
+		Os:                        gi.GoOS,
+		SnapStreamProtocolVersion: 2,
+		Version:                   "0.17.1"}
 	bodySize, _ := msg.FullSize()
-	head := messages.Head{5, 0, 0, 0, 0, 0, 0, bodySize}
+	head := messages.Head{
+		MsgType:       5,
+		Id:            0,
+		RefersTo:      0,
+		Sent_sec:      0,
+		Sent_usec:     0,
+		Received_sec:  0,
+		Received_usec: 0,
+		Size:          bodySize}
 	head.WriteTo(client.conn)
 	msg.WriteTo(client.conn)
 	timeChan := make(chan int32)
@@ -107,8 +133,7 @@ func getDecoder(codecHeader messages.Codec) (func([]byte, messages.ServerSetting
 			return output, nil
 		}, nil
 	}
-	err1 := errors.New("Foobar")
-	return nil, err1
+	return nil, &UnsupportedCodecError{Codec: codecHeader.Codec, Err: errors.New("unsupported codec")}
 }
 
 func (client *SnapClient) read() {
@@ -116,14 +141,20 @@ func (client *SnapClient) read() {
 	head := messages.Head{}
 	_, err := head.ReadFrom(client.conn)
 	if err != nil {
-		client.log.Error(err)
+		client.log.Fatal(err)
 	}
 
+	client.log.WithField("msgType", messages.GetMessageTypeName(head.MsgType)).Debug("Received new Message")
 	switch head.MsgType {
 	case messages.CodecMsg:
 		client.codecHeader = messages.Codec{}
 		client.codecHeader.ReadFrom(client.conn)
-		client.d, _ = getDecoder(client.codecHeader)
+		client.log.WithField("codec", client.codecHeader.Codec).Debug("Received Codec")
+		client.d, err = getDecoder(client.codecHeader)
+		re, ok := err.(*UnsupportedCodecError)
+		if ok {
+			client.log.WithField("codec", re.Codec).Fatal(re.Error())
+		}
 	case messages.WireChunkMsg:
 		payload := messages.WireChunk{}
 		_, err := payload.ReadFrom(client.conn)
@@ -148,6 +179,7 @@ func (client *SnapClient) read() {
 		payload.ReadFrom(client.conn)
 		client.timeMessage = payload
 	case messages.HelloMsg:
+		client.log.Error("Unexpected Hello message")
 	case messages.StreamTagMsg:
 		var bodySize uint32
 		buffer = make([]byte, 4)
@@ -158,15 +190,22 @@ func (client *SnapClient) read() {
 		client.conn.Read(payLoadBytes)
 		r = bytes.NewReader(payLoadBytes)
 		binary.Read(r, binary.LittleEndian, &payLoadBytes)
-		//payLoad := string(payLoadBytes)
-		//client.stdLog.Println(payLoad)
+		client.log.WithField("streamtags", string(payLoadBytes)).Debug("New Streamtags")
 	}
 }
 
 func (client *SnapClient) sendTime(c chan int32) {
 	c <- client.timeHead.Received_sec - client.timeHead.Sent_sec
 	c <- client.timeHead.Received_usec - client.timeHead.Sent_usec
-	head := messages.Head{4, 0, client.timeHead.Id, 0, 0, 0, 0, 8}
+	head := messages.Head{
+		MsgType:       4,
+		Id:            0,
+		RefersTo:      client.timeHead.Id,
+		Sent_sec:      0,
+		Sent_usec:     0,
+		Received_sec:  0,
+		Received_usec: 0,
+		Size:          8}
 	head.WriteTo(client.conn)
 	time := messages.CreateTime()
 
