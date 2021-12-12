@@ -36,6 +36,7 @@ func (m Hello) FullSize() (uint32, error) {
 
 	return uint32(4 + n), err
 }
+
 func (m Hello) WriteTo(w io.Writer) (int64, error) {
 	bodySize, err := m.Size()
 	if err != nil {
