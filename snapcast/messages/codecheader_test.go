@@ -30,16 +30,8 @@ func setUpOpusData(t *testing.T) ([]byte, [4]int32) {
 	return b.Bytes(), [4]int32{codeName, sampleRate, int32(bitDepth), int32(channel)}
 }
 
-func TestOpusReadFrom(t *testing.T) {
-	var opusHeader OpusHeader
-	b, data := setUpOpusData(t)
-	reader := bytes.NewReader(b)
-
-	_, err := opusHeader.ReadFrom(reader)
-	if err != nil {
-		t.Fatalf("OpusHeader.ReadFrom gave error: %s", err)
-	}
-
+func compareOpus(opusHeader OpusHeader, data []int32, t *testing.T) {
+	t.Helper()
 	if opusHeader.Name != "OPUS" {
 		t.Errorf("Opusheader.Name: Expected: OPUS, Got: %s", opusHeader.Name)
 	}
@@ -55,6 +47,19 @@ func TestOpusReadFrom(t *testing.T) {
 	if int16(data[3]) != opusHeader.Channels {
 		t.Errorf("Opusheader.Channels: Expected: %d, Got: %d", int16(data[3]), opusHeader.Channels)
 	}
+}
+
+func TestOpusReadFrom(t *testing.T) {
+	var opusHeader OpusHeader
+	b, data := setUpOpusData(t)
+	reader := bytes.NewReader(b)
+
+	_, err := opusHeader.ReadFrom(reader)
+	if err != nil {
+		t.Fatalf("OpusHeader.ReadFrom gave error: %s", err)
+	}
+
+	compareOpus(opusHeader, data[:], t)
 }
 
 func TestCodecReadFromKnownCodec(t *testing.T) {
@@ -81,6 +86,14 @@ func TestCodecReadFromKnownCodec(t *testing.T) {
 
 		if tt.name != codec.Codec {
 			t.Errorf("Codec.Codec wrong: Expected: %s, Got %s", tt.name, codec.Codec)
+		}
+
+		switch codec.Payload.(type) {
+		case *OpusHeader:
+			o := codec.Payload.(*OpusHeader)
+			compareOpus(*o, tt.data[:], t)
+		default:
+			t.Fatalf("Unknown Payload Type %T", codec.Payload)
 		}
 	}
 }
