@@ -1,23 +1,38 @@
 package main
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"time"
 
 	"github.com/f3nr1s/snable/mumble"
 	"github.com/f3nr1s/snable/snapcast"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
 	configPath, err := ParseFlags()
 	if err != nil {
-		panic(err)
+		logrus.Fatal("Error")
 	}
 	config, err := Loadconfig(configPath)
 	if err != nil {
-		panic(err)
+		logrus.Fatal(err)
+	}
+	log := logrus.New()
+	log.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp:          true,
+		DisableLevelTruncation: true,
+		PadLevelText:           true,
+	})
+	//log.SetFormatter(&log.JSONFormatter{})
+	log.SetLevel(logrus.Level(config.Debug.Level))
+	if config.Debug.LogFile != "" {
+		file, err := os.OpenFile(config.Debug.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			log.WithField("filename", config.Debug.LogFile).Fatal("Can't open Log")
+		}
+		log.SetOutput(file)
 	}
 
 	fob, _ := net.Interfaces()
@@ -28,25 +43,40 @@ func main() {
 			break
 		}
 	}
+	log.WithField("mac", mac).Debug("Found mac address")
 	ch := make(chan []int16)
 	i := 0
-	snapclient, err := snapcast.Create(config.Snapcast.Host, config.Snapcast.Port, mac, ch)
+	snapclient, err := snapcast.Create(
+		config.Snapcast.Host,
+		config.Snapcast.Port,
+		mac,
+		ch,
+		log)
 	for err != nil {
 		i++
-		fmt.Println(err)
+		log.Error(err)
 		if i >= config.Snapcast.Retries {
-			fmt.Printf("Reach retry amount %d, stopping\n", config.Snapcast.Retries)
-			os.Exit(1)
+			log.WithField("amount", config.Snapcast.Retries).Fatal("Reach retry amount, stopping")
 		}
-		fmt.Println("Trying again in one second")
+		log.Debug("Trying again in one second")
 		time.Sleep(1 * time.Second)
 
-		snapclient, err = snapcast.Create(config.Snapcast.Host, config.Snapcast.Port, mac, ch)
+		snapclient, err = snapcast.Create(
+			config.Snapcast.Host,
+			config.Snapcast.Port,
+			mac,
+			ch,
+			log)
 	}
 	defer snapclient.Close()
 	go snapclient.Initialize()
 
-	controller, _ := snapcast.CreateSnapControl(config.Snapcast.Host, config.Snapcast.WebPort, mac, config.Volume.Default, config.Volume.Ducking)
+	controller, _ := snapcast.CreateSnapControl(
+		config.Snapcast.Host,
+		config.Snapcast.WebPort,
+		mac,
+		config.Volume.Default,
+		config.Volume.Ducking)
 
 	mumbleClient, err := mumble.Create(
 		config.Mumble.Host,
@@ -57,12 +87,11 @@ func main() {
 	i = 0
 	for err != nil {
 		i++
-		fmt.Println(err)
+		log.Warn(err)
 		if i >= config.Mumble.Retries {
-			fmt.Printf("Reach retry amount %d, stopping\n", config.Mumble.Retries)
-			os.Exit(1)
+			log.WithField("amount", config.Mumble.Retries).Fatal("Reach retry amount, stopping")
 		}
-		fmt.Println("Trying again in one second")
+		log.Debug("Trying again in one second")
 		time.Sleep(1 * time.Second)
 
 		mumbleClient, err = mumble.Create(

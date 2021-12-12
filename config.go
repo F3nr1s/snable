@@ -17,15 +17,19 @@ type Config struct {
 		Retries  int    `yaml:"retries"`
 	} `yaml:"mumble"`
 	Volume struct {
-		Default	 uint	`yaml:"default"`
-		Ducking	 uint	`yaml:"ducking"`
+		Default uint `yaml:"default"`
+		Ducking uint `yaml:"ducking"`
 	} `yaml:"volume"`
 	Snapcast struct {
 		Host    string `yaml:"host"`
 		Port    string `yaml:"port"`
-		WebPort	string `yaml:"webport"`
+		WebPort string `yaml:"webport"`
 		Retries int    `yaml:"retries"`
 	} `yaml:"snapcast"`
+	Debug struct {
+		Level   uint32 `yaml:"level"`
+		LogFile string `yaml:"logfile"`
+	} `yaml:"debug"`
 }
 
 func Loadconfig(configPath string) (*Config, error) {

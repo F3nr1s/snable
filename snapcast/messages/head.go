@@ -7,14 +7,18 @@ import (
 )
 
 const (
-	BaseMsg          = 0
-	CodecMsg         = 1
-	WireChunkMsg     = 2
-	ServerSettingMsg = 3
-	TimeMsg          = 4
-	HelloMsg         = 5
-	StreamTagMsg     = 6
+	BaseMsg = iota
+	CodecMsg
+	WireChunkMsg
+	ServerSettingMsg
+	TimeMsg
+	HelloMsg
+	StreamTagMsg
 )
+
+func GetMessageTypeName(i uint16) string {
+	return [...]string{"Base", "Codec", "WireChunk", "ServerSetting", "Time", "Hello", "StreamTag"}[i]
+}
 
 type message interface {
 	io.WriterTo
