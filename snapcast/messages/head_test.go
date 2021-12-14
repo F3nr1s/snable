@@ -7,6 +7,28 @@ import (
 	"testing"
 )
 
+func TestGetMessageTypeName(t *testing.T) {
+	cases := []struct {
+		id       uint16
+		expected string
+	}{
+		{0, "Base"},
+		{1, "Codec"},
+		{2, "WireChunk"},
+		{3, "ServerSetting"},
+		{4, "Time"},
+		{5, "Hello"},
+		{6, "StreamTag"},
+	}
+
+	for _, tt := range cases {
+		got := GetMessageTypeName(tt.id)
+		if got != tt.expected {
+			t.Errorf("Got wrong Type, Expected: %s, Got: %s", tt.expected, got)
+		}
+	}
+}
+
 func TestHeadReadFrom(t *testing.T) {
 	msgType := uint16(rand.Intn(7))
 	id := uint16(rand.Int())
@@ -134,5 +156,19 @@ func TestHeadWriteTo(t *testing.T) {
 	binary.Read(reader, binary.LittleEndian, &sizeResult)
 	if sizeResult != size {
 		t.Errorf("Size changed: Expected: %d, Got: %d", size, sizeResult)
+	}
+}
+
+func TestHeadReadFromFailure(t *testing.T) {
+	var b []byte
+	r := bytes.NewReader(b)
+	var h Head
+
+	n, err := h.ReadFrom(r)
+	if err == nil {
+		t.Errorf("Got no err, read %d bytes", n)
+	}
+	if err.Error() != "EOF" {
+		t.Errorf("Unexpected error: %s", err)
 	}
 }

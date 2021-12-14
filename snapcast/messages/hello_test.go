@@ -23,7 +23,7 @@ func TestHelloWriteTo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Hello.WriteTo() gave error: %s", err)
 	}
-	sizeWanted, err := message.FullSize()
+	sizeWanted := message.FullSize()
 	if err != nil {
 		t.Fatalf("Hello.Fullsize() gave error: %s", err)
 	}
@@ -40,5 +40,24 @@ func TestHelloWriteTo(t *testing.T) {
 	}
 	if string(msg) != string(got) {
 		t.Errorf("Message changed: expected %s, got %s", msg, got)
+	}
+}
+
+func TestHelloSize(t *testing.T) {
+	h := Hello{
+		Arch:                      "12345",
+		ClientName:                "Testing",
+		ID:                        "6789",
+		Instance:                  1,
+		Mac:                       "c0:ff:ee:c0:ff:ee",
+		Os:                        "Nothing",
+		SnapStreamProtocolVersion: 3,
+		Version:                   "3.1",
+	}
+
+	size := h.FullSize()
+
+	if size != 169 {
+		t.Errorf("Unexpected size, expected: %d, got: %d", 169, size)
 	}
 }

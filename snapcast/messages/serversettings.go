@@ -17,7 +17,7 @@ func (m *ServerSettings) ReadFrom(r io.Reader) (int64, error) {
 	var size uint32
 	err := binary.Read(r, binary.LittleEndian, &size)
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 
 	var n int64 = 4

@@ -78,7 +78,7 @@ func (client *SnapClient) Initialize() error {
 		Os:                        gi.GoOS,
 		SnapStreamProtocolVersion: 2,
 		Version:                   "0.17.1"}
-	bodySize, _ := msg.FullSize()
+	bodySize := msg.FullSize()
 	head := messages.Head{
 		MsgType:       5,
 		Id:            0,
@@ -207,7 +207,7 @@ func (client *SnapClient) sendTime(c chan int32) {
 		Received_usec: 0,
 		Size:          8}
 	head.WriteTo(client.conn)
-	time := messages.CreateTime()
+	time := messages.Time{LatencySec: 0, LatencyUsec: 0}
 
 	time.LatencySec = client.latencySec
 	time.LatencyUsec = client.latencyUsec
